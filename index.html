@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,9 +9,10 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Animated,
+  Easing,
 } from 'react-native';
 
-// Sample Event & Venue Data (Replacing Google Maps markers)
 const INITIAL_CONCERT_DATA = [
   {
     id: '1',
@@ -35,6 +36,373 @@ const INITIAL_CONCERT_DATA = [
   },
   {
     id: '3',
+    artist: 'CHVRCHES',
+    venueName: 'Climate Pledge Arena',
+    address: '305 Harrison St, Seattle, WA 98109',
+    date: 'Nov 02, 2026',
+    time: '8:00 PM',
+    ticketUrl: 'https://example.com/tickets/3',
+    featuredTrack: 'The Mother We Share',
+  },
+];
+
+export default function App() {
+  const [events, setEvents] = useState(INITIAL_CONCERT_DATA);
+  const [isConnectedToSpotify, setIsConnectedToSpotify] = useState(false);
+
+  // Animated Visual Effect Values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Continuous Breathing/Pulsing Animation Effect for Hero Graphic
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.15,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Subtle Rotation Animation
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 12000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [pulseAnim, rotateAnim]);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleSpotifyAuth = () => {
+    setIsConnectedToSpotify(!isConnectedToSpotify);
+    Alert.alert(
+      isConnectedToSpotify ? 'Disconnected' : 'Connected',
+      isConnectedToSpotify
+        ? 'Your account on Spotify has been unlinked.'
+        : 'Successfully authenticated with your account on Spotify!'
+    );
+  };
+
+  const handleSavePlaylist = (artist) => {
+    if (!isConnectedToSpotify) {
+      Alert.alert('Connect Account', 'Please connect your account on Spotify first.');
+      return;
+    }
+    Alert.alert('Success', `Saved ${artist}'s event playlist to your account on Spotify!`);
+  };
+
+  const handleOpenLink = async (url) => {
+    if (url) {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      }
+    }
+  };
+
+  const renderEventItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.artistText}>{item.artist}</Text>
+          <Text style={styles.venueText}>{item.venueName}</Text>
+        </View>
+        
+        {item.ticketUrl ? (
+          <TouchableOpacity
+            style={styles.ticketButton}
+            onPress={() => handleOpenLink(item.ticketUrl)}
+          >
+            <Text style={styles.ticketButtonText}>View Event</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.detailsContainer}>
+        <Text style={styles.addressText}>📍 {item.address}</Text>
+        <Text style={styles.dateTimeText}>
+          📅 {item.date}  •  ⏰ {item.time}
+        </Text>
+      </View>
+
+      <View style={styles.actionRow}>
+        <Text style={styles.trackSampleText}>🎵 Sample: {item.featuredTrack}</Text>
+        
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            !isConnectedToSpotify && styles.saveButtonDisabled,
+          ]}
+          onPress={() => handleSavePlaylist(item.artist)}
+        >
+          <Text style={styles.saveButtonText}>+ Save Playlist</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      
+      {/* Top Bar */}
+      <View style={styles.appHeader}>
+        <Text style={styles.brandTitle}>BandSpotter</Text>
+        <TouchableOpacity
+          style={[
+            styles.authButton,
+            isConnectedToSpotify ? styles.authButtonConnected : styles.authButtonDisconnected,
+          ]}
+          onPress={handleSpotifyAuth}
+        >
+          <Text style={styles.authButtonText}>
+            {isConnectedToSpotify ? 'Connected' : 'Link Spotify'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* NEW HERO GRAPHIC EFFECT: Animated Stage Light & Vinyl Disk */}
+      <View style={styles.heroContainer}>
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.vinylDisc,
+            {
+              transform: [{ rotate: spin }],
+            },
+          ]}
+        >
+          <View style={styles.vinylCenter} />
+        </Animated.View>
+        <Text style={styles.heroText}>LIVE MUSIC DISCOVERY</Text>
+        <Text style={styles.heroSubtext}>Find touring acts & save concert playlists</Text>
+      </View>
+
+      {/* Concert Location & Event List */}
+      <FlatList
+        data={events}
+        keyExtractor={(item) => item.id}
+        renderItem={renderEventItem}
+        contentContainerStyle={styles.listPadding}
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>Upcoming Concert Locations</Text>
+        }
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No upcoming concert locations found.</Text>
+        }
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  appHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#0F172A',
+  },
+  brandTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  authButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  authButtonDisconnected: {
+    backgroundColor: '#1DB954',
+  },
+  authButtonConnected: {
+    backgroundColor: '#334155',
+  },
+  authButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  /* Hero Graphic Styles */
+  heroContainer: {
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glowRing: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#6366F1',
+    opacity: 0.25,
+  },
+  vinylDisc: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#1E293B',
+    borderWidth: 4,
+    borderColor: '#475569',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  vinylCenter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#6366F1',
+  },
+  heroText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  heroSubtext: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  /* Content List Styles */
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  listPadding: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  titleContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  artistText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  venueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4F46E5',
+    marginTop: 2,
+  },
+  ticketButton: {
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  ticketButtonText: {
+    color: '#4F46E5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailsContainer: {
+    marginTop: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  addressText: {
+    fontSize: 13,
+    color: '#334155',
+    marginBottom: 4,
+  },
+  dateTimeText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  trackSampleText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#475569',
+  },
+  saveButton: {
+    backgroundColor: '#0F172A',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    marginTop: 32,
+  },
+});    id: '3',
     artist: 'CHVRCHES',
     venueName: 'Climate Pledge Arena',
     address: '305 Harrison St, Seattle, WA 98109',
