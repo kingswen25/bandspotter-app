@@ -1,40 +1,311 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BandSpotter — Discover New Artists & Live Shows</title>
-    <meta name="description" content="Discover live concert dates and find new bands tailored to your musical taste.">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  TouchableOpacity,
+  Linking,
+  SafeAreaView,
+  StatusBar,
+  Alert,
+} from 'react-native';
 
-    <style>
-        :root {
-            --bg-color: #0c0d10;
-            --card-bg: #16181e;
-            --accent-gold: #d4af37;
-            --accent-glow: #ffc83b;
-            --text-main: #f0f2f5;
-            --text-muted: #9ba1b0;
-            --border-color: #262933;
+// Sample Event & Venue Data (Replacing Google Maps markers)
+const INITIAL_CONCERT_DATA = [
+  {
+    id: '1',
+    artist: 'The Midnight',
+    venueName: 'The Paramount Theatre',
+    address: '911 Pine St, Seattle, WA 98101',
+    date: 'Oct 14, 2026',
+    time: '8:00 PM',
+    ticketUrl: 'https://example.com/tickets/1',
+    featuredTrack: 'Sunset',
+  },
+  {
+    id: '2',
+    artist: 'Beach House',
+    venueName: 'Showbox SoDo',
+    address: '1700 1st Ave S, Seattle, WA 98134',
+    date: 'Oct 18, 2026',
+    time: '7:30 PM',
+    ticketUrl: 'https://example.com/tickets/2',
+    featuredTrack: 'Myth',
+  },
+  {
+    id: '3',
+    artist: 'CHVRCHES',
+    venueName: 'Climate Pledge Arena',
+    address: '305 Harrison St, Seattle, WA 98109',
+    date: 'Nov 02, 2026',
+    time: '8:00 PM',
+    ticketUrl: 'https://example.com/tickets/3',
+    featuredTrack: 'The Mother We Share',
+  },
+];
+
+export default function App() {
+  const [events, setEvents] = useState(INITIAL_CONCERT_DATA);
+  const [isConnectedToSpotify, setIsConnectedToSpotify] = useState(false);
+
+  // Policy-compliant Account Authorization on Spotify
+  const handleSpotifyAuth = () => {
+    setIsConnectedToSpotify(!isConnectedToSpotify);
+    Alert.alert(
+      isConnectedToSpotify ? 'Disconnected' : 'Connected',
+      isConnectedToSpotify
+        ? 'Your account on Spotify has been unlinked.'
+        : 'Successfully authenticated with your account on Spotify!'
+    );
+  };
+
+  // Policy-compliant Playlist Save Action
+  const handleSavePlaylist = (artist) => {
+    if (!isConnectedToSpotify) {
+      Alert.alert('Connect Account', 'Please connect your account on Spotify first.');
+      return;
+    }
+    Alert.alert('Success', `Saved ${artist}'s event playlist to your account on Spotify!`);
+  };
+
+  const handleOpenLink = async (url) => {
+    if (url) {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      }
+    }
+  };
+
+  const renderEventItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.artistText}>{item.artist}</Text>
+          <Text style={styles.venueText}>{item.venueName}</Text>
+        </View>
+        
+        {item.ticketUrl ? (
+          <TouchableOpacity
+            style={styles.ticketButton}
+            onPress={() => handleOpenLink(item.ticketUrl)}
+          >
+            <Text style={styles.ticketButtonText}>View Event</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* Location & Time Info (Replaces Map Marker) */}
+      <View style={styles.detailsContainer}>
+        <Text style={styles.addressText}>📍 {item.address}</Text>
+        <Text style={styles.dateTimeText}>
+          📅 {item.date}  •  ⏰ {item.time}
+        </Text>
+      </View>
+
+      {/* Featured Track Clip & Spotify Actions */}
+      <View style={styles.actionRow}>
+        <Text style={styles.trackSampleText}>🎵 Sample: {item.featuredTrack}</Text>
+        
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            !isConnectedToSpotify && styles.saveButtonDisabled,
+          ]}
+          onPress={() => handleSavePlaylist(item.artist)}
+        >
+          <Text style={styles.saveButtonText}>+ Save Playlist</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+      
+      {/* App Header */}
+      <View style={styles.appHeader}>
+        <View>
+          <Text style={styles.appTitle}>BandSpotter</Text>
+          <Text style={styles.appSubtitle}>Discover touring acts & setlists</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.authButton,
+            isConnectedToSpotify ? styles.authButtonConnected : styles.authButtonDisconnected,
+          ]}
+          onPress={handleSpotifyAuth}
+        >
+          <Text style={styles.authButtonText}>
+            {isConnectedToSpotify ? 'Connected' : 'Link Spotify'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Concert Location & Event List */}
+      <FlatList
+        data={events}
+        keyExtractor={(item) => item.id}
+        renderItem={renderEventItem}
+        contentContainerStyle={styles.listPadding}
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>Upcoming Concert Locations</Text>
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No upcoming concert locations found.</Text>
         }
+      />
+    </SafeAreaView>
+  );
+}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.6;
-            padding: 0;
-            margin: 0;
-            overflow-x: hidden;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  appHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  appTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  appSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  authButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  authButtonDisconnected: {
+    backgroundColor: '#1DB954', // Spotify Green accent color for action button
+  },
+  authButtonConnected: {
+    backgroundColor: '#374151',
+  },
+  authButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  listPadding: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  titleContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  artistText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  venueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4F46E5',
+    marginTop: 2,
+  },
+  ticketButton: {
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  ticketButtonText: {
+    color: '#4F46E5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailsContainer: {
+    marginTop: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  addressText: {
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  dateTimeText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  trackSampleText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#4B5563',
+  },
+  saveButton: {
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    marginTop: 32,
+  },
+});            overflow-x: hidden;
         }
 
         /* Navigation */
